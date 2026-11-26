@@ -27,11 +27,11 @@ const STAT_INFO = [
 ];
 
 const RARITY = {
-  common:    { w: 50,   xp: 25,  label: 'Common',    color: '#7a9a7a' },
-  uncommon:  { w: 29.1, xp: 35,  label: 'Uncommon',  color: '#3d8bd9' },
-  rare:      { w: 15,   xp: 50,  label: 'Rare',      color: '#b05bd9' },
-  legendary: { w: 5,    xp: 100, label: 'Legendary', color: '#e0a100' },
-  divine:    { w: 0.9,  xp: 250, label: 'Divine',    color: 'linear-gradient(90deg,#ff6b9a,#ffb84d,#6cd47e,#4dc3ff,#b388ff)' },
+  common:    { w: 62,   xp: 25,  label: 'Common',    color: '#7a9a7a' },
+  uncommon:  { w: 27,   xp: 35,  label: 'Uncommon',  color: '#3d8bd9' },
+  rare:      { w: 9,    xp: 50,  label: 'Rare',      color: '#b05bd9' },
+  legendary: { w: 1.7,  xp: 100, label: 'Legendary', color: '#e0a100' },
+  divine:    { w: 0.3,  xp: 250, label: 'Divine',    color: 'linear-gradient(90deg,#ff6b9a,#ffb84d,#6cd47e,#4dc3ff,#b388ff)' },
 };
 const RARITY_ORDER = ['common', 'uncommon', 'rare', 'legendary', 'divine'];
 
