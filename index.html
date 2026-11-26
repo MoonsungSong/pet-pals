@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pet Pals</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Chewy&family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=51">
+</head>
+<body>
+  <div id="app">
+    <header id="topbar">
+      <div class="lvl">
+        <button id="profileBtn" class="avatar-btn" type="button" aria-label="My profile"><img id="avatarImg" alt=""></button>
+        <span id="lvlText" class="lv-badge">1</span>
+        <div class="bar xp"><div id="xpFill"></div></div>
+      </div>
+      <button id="coins" type="button" aria-label="Coins. Tap to play games and earn more">🪙 <span id="coinText">0</span><i class="plus">+</i></button>
+    </header>
+
+    <main id="screen"></main>
+
+    <nav id="nav">
+      <button data-tab="room"><i class="ico">🏠</i><span>Home</span></button>
+      <button data-tab="shop"><i class="ico">🛒</i><span>Shop</span></button>
+      <button data-tab="games" class="play-main"><b>🎮</b><span>Play</span></button>
+      <button data-tab="eggs"><i class="ico">🥚</i><span>Eggs</span></button>
+      <button data-tab="pets"><i class="ico">🐾</i><span>Pets</span></button>
+    </nav>
+  </div>
+
+  <div id="modal" class="hidden"><div class="modal-box" id="modalBox"></div></div>
+  <div id="toast"></div>
+
+  <script src="assets/pets/eyes.js?v=5"></script>
+  <script src="assets/pets/tails.js?v=3"></script>
+  <script>window.PETPALS_GAME_SRC = 'game.js?v=57'; window.PETPALS_SOCIAL_SRC = 'social.js?v=1'; window.PETPALS_SOCIAL_ONLINE_SRC = 'online/social-online.js?v=1';</script>
+  <script src="online/config.js?v=2"></script>
+  <script src="online/online.js?v=1"></script>
+  <script src="login.js?v=4"></script>
+</body>
+</html>

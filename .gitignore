@@ -1,0 +1,8 @@
+# Not needed by the website (art sources and backups)
+assets/pets_original/
+assets/sheets/
+Gemini_Generated_Image*.jpeg
+# Local tools and settings
+.claude/
+# The database setup is run in Supabase, not served with the game
+online/setup.sql
