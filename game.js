@@ -15,7 +15,7 @@ const MAX_EGGS = 3;
 const STAGES = ['Baby', 'Teen', 'Adult'];
 const EVOLVE_AT = [0, 100, 300];               // pet XP needed for each stage
 // How fast each stat drops per second while awake (100 → 0 in roughly 35-65 minutes).
-const RATES = { hunger: 0.04 / 3, thirst: 0.045 / 3, happiness: 0.035 / 3, energy: 0.025 / 3 };   // per second (made 3x slower)
+const RATES = { hunger: 0.04 / 9, thirst: 0.045 / 9, happiness: 0.035 / 9, energy: 0.025 / 9 };   // per second (made 9x slower than the start)
 const SLEEP_ENERGY_GAIN = 0.8;                 // energy per second while sleeping
 const GAME_ENERGY_COST = 12;
 
