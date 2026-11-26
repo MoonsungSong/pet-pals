@@ -1838,7 +1838,7 @@ function rarityGroups(regionId) {
     const found = list.filter(([sid]) => state.dex.includes(sid)).length;
     return `<div class="rar-group rar-${rar}">
       <div class="rar-head"><span class="tag" style="background:${RARITY[rar].color}">${RARITY[rar].label}</span>
-        <span class="muted">${RARITY[rar].w}% chance · found ${found}/${list.length}</span></div>
+        <span class="muted">${RARITY[rar].w}% · <b>1 in ${Math.round(100 / RARITY[rar].w).toLocaleString('en-US')} eggs</b> · found ${found}/${list.length}</span></div>
       <div class="rar-grid">${list.map(([sid, sp]) => {
         const known = state.dex.includes(sid);
         return `<div class="book-card ${known ? '' : 'unknown'}" title="${known ? sp.name : 'Not found yet'}">
