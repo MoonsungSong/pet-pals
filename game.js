@@ -1938,6 +1938,7 @@ function hatch(eggId) {
 /* ---------- Pets ---------- */
 
 let petsView = 'mine';
+let petSort = 'high';   // My Pets order: high, rare or region
 let bookRegion = 'grass';
 
 function renderPetBook() {
@@ -2190,6 +2191,35 @@ function openSentCodes() {
     <button class="btn" data-close>Close</button>`);
 }
 
+// Say goodbye to a pet. It goes back to the wild and leaves a small thank-you gift
+// (always less than its egg cost, so releasing never makes money).
+const RELEASE_GIFT = { common: 0.1, uncommon: 0.15, rare: 0.2, legendary: 0.4, divine: 0.8 };
+function releasePet(id) {
+  const pet = state.pets.find(p => p.id === id);
+  if (!pet || state.pets.length < 2) return;
+  const sp = SPECIES[pet.species], reg = regionById(sp.region);
+  const gift = Math.round(reg.cost * RELEASE_GIFT[sp.rarity]);
+  const rareWarn = ['legendary', 'divine'].includes(sp.rarity)
+    ? `<p><b>⚠️ ${esc(pet.name)} is ${RARITY[sp.rarity].label}! Are you really sure?</b></p>` : '';
+  openModal(`<h2>Release ${esc(pet.name)}?</h2>
+    <img src="${sp.img}" alt="" style="width:120px;height:120px;object-fit:contain">
+    <p>${esc(pet.name)} will go back to ${reg.emoji} ${reg.name} and live happily in the wild.
+    You can't get ${esc(pet.name)} back.</p>${rareWarn}
+    <p>${esc(pet.name)} leaves you a thank-you gift of 🪙 ${gift}.</p>
+    <button class="btn" id="relYes">👋 Yes, release</button> <button class="btn ghost" data-close>No, keep ${esc(pet.name)}</button>`, box => {
+    $('#relYes', box).onclick = () => {
+      state.pets = state.pets.filter(p => p !== pet);
+      if (state.activeId === pet.id) state.activeId = state.pets[0].id;
+      if (state.profile && state.profile.fav === pet.id) state.profile.fav = null;
+      state.coins += gift;
+      save();
+      closeModal();
+      toast(`👋 Bye bye, ${pet.name}! You got 🪙 ${gift}.`);
+      render();
+    };
+  });
+}
+
 function renderPets() {
   const tabs = `<div class="subtabs"><button data-view="mine" class="${petsView === 'mine' ? 'active' : ''}">🐾 My Pets</button><button data-view="book" class="${petsView === 'book' ? 'active' : ''}">📖 Pet Book</button></div>`;
   if (petsView === 'book') {
@@ -2198,9 +2228,7 @@ function renderPets() {
     screen.querySelectorAll('[data-book]').forEach(b => b.onclick = () => { bookRegion = b.dataset.book; renderPets(); });
     return;
   }
-  screen.innerHTML = `<h2>My Pets</h2>${tabs}
-    <p class="muted">Pets that aren't in your room get hungry more slowly.</p>
-    ${state.pets.length ? state.pets.map(p => {
+  const card = p => {
       const sp = SPECIES[p.species];
       const active = p.id === state.activeId;
       const next = p.stage < 2 ? EVOLVE_AT[p.stage + 1] : null;
@@ -2215,9 +2243,30 @@ function renderPets() {
         <div class="pbtns">
           ${active ? '<button class="btn small green" disabled>In room</button>' : `<button class="btn small blue" data-active="${p.id}">Bring to room</button>`}
           <button class="btn small ghost" data-rename="${p.id}">Rename</button>
+          ${state.pets.length > 1 ? `<button class="btn small ghost release-btn" data-release="${p.id}">👋 Release</button>` : ''}
         </div></div>`;
-    }).join('') : '<div class="panel">No pets yet. Go hatch an egg! 🥚</div>'}
+  };
+  // Highest first: grown-up stage, then most growing points, then rarest.
+  const rank = p => RARITY_ORDER.indexOf(SPECIES[p.species].rarity);
+  const byHigh = (a, b) => b.stage - a.stage || b.pxp - a.pxp || rank(b) - rank(a);
+  const byRare = (a, b) => rank(b) - rank(a) || byHigh(a, b);
+  let list = '';
+  if (!state.pets.length) list = '<div class="panel">No pets yet. Go hatch an egg! 🥚</div>';
+  else if (petSort === 'region') {
+    list = REGIONS.map(r => {
+      const mine = state.pets.filter(p => SPECIES[p.species].region === r.id).sort(byHigh);
+      return mine.length ? `<h3 class="sort-head">${r.emoji} ${r.name} <span class="muted">(${mine.length})</span></h3>${mine.map(card).join('')}` : '';
+    }).join('');
+  } else list = [...state.pets].sort(petSort === 'rare' ? byRare : byHigh).map(card).join('');
+  const sortBtn = (k, label) => `<button data-sort="${k}" class="${petSort === k ? 'active' : ''}">${label}</button>`;
+  screen.innerHTML = `<h2>My Pets</h2>${tabs}
+    <p class="muted">You have <b>${state.pets.length}</b> pets. Pets that aren't in your room get hungry more slowly.</p>
+    ${state.pets.length > 1 ? `<div class="subtabs sortbar">${sortBtn('high', '⬆️ Highest')}${sortBtn('rare', '💎 Rarest')}${sortBtn('region', '🗺️ Region')}</div>` : ''}
+    ${list}
     <p style="text-align:center"><button class="linkbtn" id="reset">Start a new game</button></p>`;
+
+  screen.querySelectorAll('[data-sort]').forEach(b => b.onclick = () => { petSort = b.dataset.sort; renderPets(); });
+  screen.querySelectorAll('[data-release]').forEach(b => b.onclick = () => releasePet(+b.dataset.release));
 
   screen.querySelectorAll('[data-view]').forEach(b => b.onclick = () => { petsView = b.dataset.view; renderPets(); });
   screen.querySelectorAll('[data-active]').forEach(b => b.onclick = () => {

@@ -840,3 +840,8 @@ h2::after { content: ' ✦'; color: #b8a8e8; }
 .add-friend { display: flex; gap: 8px; }
 .add-friend .login-in { text-transform: uppercase; letter-spacing: 2px; }
 .avatar-btn.offline::before { content: '📴'; position: absolute; bottom: -4px; left: -4px; font-size: .8rem; }
+
+/* My Pets: sort buttons, region headings, release button */
+.sortbar { margin: 4px 0 10px; }
+.sort-head { margin: 14px 4px 6px; font-size: 1.05rem; }
+.release-btn { color: #c0503a; }
