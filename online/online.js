@@ -21,6 +21,16 @@
     no_such_code: 'No player has that friend code. Check the letters!',
     own_code: "That's your own friend code! 😄",
     not_friends: 'You can only do that with friends.',
+    too_fast: 'Slow down a little! Wait a few seconds before chatting again. 🐢',
+    empty: 'Type a message first!',
+    room_gone: 'That trade room is closed now.',
+    put_pet_first: 'Put a pet in first, then press Accept!',
+    side_full: 'You can put in up to 4 pets.',
+    not_joined: 'Wait for your friend to say yes to the trade first!',
+    wait_a_bit: 'The pets just changed. Look carefully, then try again in 3 seconds! 👀',
+    both_accept_first: 'You both need to press Accept first!',
+    too_many_rooms: 'You already have 3 trade rooms open. Finish or close one first!',
+    pet_too_big: "That pet can't be traded right now.",
     too_many_offers: 'You already have 5 trades waiting. Wait for answers first!',
     too_many_requests: 'You have lots of friend requests waiting already.',
     too_many_gifts: "You've sent lots of gifts already. Wait until they're opened!",
@@ -64,7 +74,15 @@
       hookSaving();
       const f = document.createElement('script');
       f.src = window.PETPALS_SOCIAL_ONLINE_SRC;
-      f.onload = () => { if (window.render) render(); if (window.PPO_social) window.PPO_social.start(); };
+      f.onload = () => {
+        if (window.render) render();
+        if (window.PPO_social) window.PPO_social.start();
+        if (window.PETPALS_CHAT_SRC) {                 // friends chat + live trade rooms
+          const c = document.createElement('script');
+          c.src = window.PETPALS_CHAT_SRC;
+          document.body.appendChild(c);
+        }
+      };
       document.body.appendChild(f);
     };
     document.body.appendChild(s);

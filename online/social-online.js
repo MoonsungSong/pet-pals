@@ -46,9 +46,10 @@
         const pet = addPet(r.payload.pet);
         save();
         if (pet) {
-          const why = r.payload.why === 'declined' ? `${esc(m.from ? m.from.nickname : 'Your friend')} said no to the trade, so <b>${esc(pet.name)}</b> came back home. 🏡`
+          const why = r.payload.why === 'room_closed' ? `The trade room was closed, so <b>${esc(pet.name)}</b> came back home. 🏡`
+            : r.payload.why === 'declined' ?`${esc(m.from ? m.from.nickname : 'Your friend')} said no to the trade, so <b>${esc(pet.name)}</b> came back home. 🏡`
             : `🎉 Trade done! <b>${esc(pet.name)}</b> the ${SPECIES[pet.species].name} from ${esc(m.from ? m.from.nickname : 'your friend')} is your pet now!`;
-          openModal(`<h2>${r.payload.why === 'declined' ? '🏡 Welcome home!' : '🎉 New pet!'}</h2><img src="${SPECIES[pet.species].img}" alt="" style="width:140px;height:140px;object-fit:contain"><p>${why}</p><button class="btn" data-close>Yay! 💖</button>`);
+          openModal(`<h2>${r.payload.why === 'declined' || r.payload.why === 'room_closed' ?'🏡 Welcome home!' : '🎉 New pet!'}</h2><img src="${SPECIES[pet.species].img}" alt="" style="width:140px;height:140px;object-fit:contain"><p>${why}</p><button class="btn" data-close>Yay! 💖</button>`);
         }
       } catch (e) { /* already claimed on another device */ }
     }
@@ -179,6 +180,7 @@
   }
 
   async function trade(f) {
+    if (window.PPO_chat && window.PPO_chat.ready()) return window.PPO_chat.tradeWith(f.id);   // live trade window (when chat is set up)
     if (state.pets.length < 2) { toast('Keep at least one pet at home! Hatch another egg before trading.'); return; }
     let theirs;
     try { theirs = (await P.rpc('pp_friend_pets', { p_token: tok(), p_friend: f.id })).pets.filter(p => SPECIES[p.species]); }
@@ -210,6 +212,9 @@
   }
 
   window.PPO_social = {
+    addPet, takePet,
+    refresh() { social = null; return refresh(); },
+    friends: () => social ? social.friends : null,
     start() {
       refresh();
       setInterval(refresh, 45000);                   // check the mailbox now and then
