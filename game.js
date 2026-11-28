@@ -1741,21 +1741,42 @@ const GAMES = {
   bakery:  { job: true, icon: '🎂', name: 'Cake Bakery', desc: 'Stack the cake layers and add the candle.', max: 110, level: 35, run: r => runJob(r, 'bakery') },
 };
 
+let playView = 'jobs';   // Play page: 'jobs' (Pet Town) or 'games' (Arcade)
+const TILE_HUES = [350, 28, 48, 140, 190, 215, 265, 300];
+
 function renderGames() {
   const pet = activePet();
   const tired = pet && (pet.sleeping || pet.energy < GAME_ENERGY_COST);
+  const jobs = playView === 'jobs';
+  const list = Object.entries(GAMES).filter(([, g]) => !!g.job === jobs).sort(([, a], [, b]) => (a.level || 1) - (b.level || 1));
+  const open = list.filter(([, g]) => state.level >= (g.level || 1)).length;
+  const tile = ([key, g], i) => {
+    const locked = state.level < (g.level || 1);
+    const hue = TILE_HUES[i % TILE_HUES.length];
+    return `<button type="button" class="ptile ${jobs ? 'shop' : 'arcade'} ${locked ? 'locked' : ''}" style="--hue:${hue}"
+        ${locked ? `data-locked="${key}"` : tired ? 'data-sleep="1"' : `data-game="${key}"`} aria-label="${g.name}">
+      ${jobs ? '<span class="awning"></span>' : '<span class="marquee">★ ★ ★</span>'}
+      <span class="ptile-screen"><span class="ptile-ico">${locked ? '🔒' : g.icon}</span></span>
+      <b class="ptile-name">${g.name}</b>
+      ${locked ? `<span class="ptile-lock">Opens at Lv ${g.level}</span>`
+        : `<span class="ptile-meta"><span class="glvl">Lv ${gameLevel(key)}</span> ⭐ ${state.best[key] || 0}</span>
+           <span class="ptile-win">🪙 up to ${Math.round(g.max * coinBonus(key))}${coinBonus(key) > 1 ? ` <i>x${coinBonus(key)}</i>` : ''}</span>
+           <span class="ptile-go">${tired ? '😴 Sleep first' : jobs ? '💼 Work!' : '▶ Play!'}</span>`}
+    </button>`;
+  };
   screen.innerHTML = `<h2>Play</h2>
-    ${pet ? `<div class="energy-pill">⚡ ${esc(pet.name)}'s energy: <b>${Math.round(pet.energy)}</b></div>` : ''}
-    ${[['💼 Jobs', true], ['🎮 Games', false]].map(([title, isJob]) => `<h3 class="games-sec">${title}</h3>` +
-    Object.entries(GAMES).filter(([, g]) => !!g.job === isJob).sort(([, a], [, b]) => (a.level || 1) - (b.level || 1)).map(([key, g]) => `
-      <div class="game-card ${state.level < (g.level || 1) ? 'locked' : ''}"><div class="gi">${g.icon}</div>
-        <div class="ginfo"><b>${g.name}</b><div class="muted">${g.desc}</div>
-          <div class="muted"><span class="glvl">Level ${gameLevel(key)}</span> Best ⭐ ${state.best[key] || 0}${coinBonus(key) > 1 ? ` · <b class="gbonus">🪙 x${coinBonus(key)} bonus</b>` : ''}</div>
-          <div class="chips"><span class="chip win">🪙 Win up to ${Math.round(g.max * coinBonus(key))}</span><span class="chip cost">⚡ Uses ${GAME_ENERGY_COST}</span></div></div>
-        ${state.level < (g.level || 1) ? `<span class="lockpill">🔒 Opens at Lv ${g.level}</span>`
-          : tired ? `<button class="play-round sleepy" data-sleep="1" type="button">😴<small>Sleep first</small></button>`
-                : `<button class="play-round" data-game="${key}" type="button" aria-label="Play ${g.name}">▶</button>`}</div>`).join('')).join('')}`;
+    <div class="play-switch">
+      <button type="button" data-pv="jobs" class="${jobs ? 'active' : ''}"><span>🏙️</span>Pet Town<small>Jobs</small></button>
+      <button type="button" data-pv="games" class="${!jobs ? 'active' : ''}"><span>🕹️</span>Arcade<small>Games</small></button>
+    </div>
+    ${pet ? `<div class="energy-pill">⚡ ${esc(pet.name)}'s energy: <b>${Math.round(pet.energy)}</b> · each play uses ${GAME_ENERGY_COST}</div>` : ''}
+    <div class="play-scene ${jobs ? 'town' : 'arcade'}">
+      <div class="play-sign">${jobs ? '🏙️ Pet Town · pick a job!' : '🕹️ Pet Arcade · pick a game!'} <small>${open}/${list.length} open</small></div>
+      <div class="ptiles">${list.map(tile).join('')}</div>
+    </div>`;
+  screen.querySelectorAll('[data-pv]').forEach(b => b.onclick = () => { playView = b.dataset.pv; renderGames(); });
   screen.querySelectorAll('[data-game]').forEach(b => b.onclick = () => startGame(b.dataset.game));
+  screen.querySelectorAll('[data-locked]').forEach(b => b.onclick = () => { const g = GAMES[b.dataset.locked]; toast(`🔒 ${g.name} opens at level ${g.level}! ${g.desc}`); });
   screen.querySelectorAll('[data-sleep]').forEach(b => b.onclick = () => { go('room'); toast(`Tap Sleep so ${pet.name} can rest! 🌙`); });
 }
 
