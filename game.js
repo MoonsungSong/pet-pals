@@ -1730,6 +1730,11 @@ const GAMES = {
   snack:   { icon: '🍪', name: 'Snack Time', desc: 'Your pet wants a snack. Tap the right one, fast!', max: 70, level: 40, run: runSnack },
   seek:    { icon: '🎩', name: 'Hide & Seek', desc: 'Your pet hides under a cup. Follow it as the cups shuffle!', max: 75, level: 50, run: runSeek },
   glide:   { icon: '☁️', name: 'Sky Glide', desc: 'Flap through the clouds and grab the stars.', max: 90, level: 60, run: runGlide },
+  // Jobs: your pet works a shift. Make what the customer orders, in the right order.
+  burger:  { job: true, icon: '🍔', name: 'Burger Diner', desc: 'Stack burgers just the way customers order them.', max: 80, run: r => runJob(r, 'burger') },
+  icecream:{ job: true, icon: '🍦', name: 'Ice Cream Shop', desc: 'Scoop the right flavours, then add the topping.', max: 85, level: 8, run: r => runJob(r, 'icecream') },
+  pizza:   { job: true, icon: '🍕', name: 'Pizza Place', desc: 'Make the pizza, then pop it in the oven!', max: 95, level: 18, run: r => runJob(r, 'pizza') },
+  cafe:    { job: true, icon: '☕', name: 'Cozy Café', desc: 'Mix drinks for a line of thirsty customers.', max: 100, level: 28, run: r => runJob(r, 'cafe') },
 };
 
 function renderGames() {
@@ -1737,14 +1742,15 @@ function renderGames() {
   const tired = pet && (pet.sleeping || pet.energy < GAME_ENERGY_COST);
   screen.innerHTML = `<h2>Play</h2>
     ${pet ? `<div class="energy-pill">⚡ ${esc(pet.name)}'s energy: <b>${Math.round(pet.energy)}</b></div>` : ''}
-    ${Object.entries(GAMES).map(([key, g]) => `
+    ${[['💼 Jobs', true], ['🎮 Games', false]].map(([title, isJob]) => `<h3 class="games-sec">${title}</h3>` +
+    Object.entries(GAMES).filter(([, g]) => !!g.job === isJob).map(([key, g]) => `
       <div class="game-card ${state.level < (g.level || 1) ? 'locked' : ''}"><div class="gi">${g.icon}</div>
         <div class="ginfo"><b>${g.name}</b><div class="muted">${g.desc}</div>
           <div class="muted"><span class="glvl">Level ${gameLevel(key)}</span> Best ⭐ ${state.best[key] || 0}${coinBonus(key) > 1 ? ` · <b class="gbonus">🪙 x${coinBonus(key)} bonus</b>` : ''}</div>
           <div class="chips"><span class="chip win">🪙 Win up to ${Math.round(g.max * coinBonus(key))}</span><span class="chip cost">⚡ Uses ${GAME_ENERGY_COST}</span></div></div>
         ${state.level < (g.level || 1) ? `<span class="lockpill">🔒 Opens at Lv ${g.level}</span>`
           : tired ? `<button class="play-round sleepy" data-sleep="1" type="button">😴<small>Sleep first</small></button>`
-                : `<button class="play-round" data-game="${key}" type="button" aria-label="Play ${g.name}">▶</button>`}</div>`).join('')}`;
+                : `<button class="play-round" data-game="${key}" type="button" aria-label="Play ${g.name}">▶</button>`}</div>`).join('')).join('')}`;
   screen.querySelectorAll('[data-game]').forEach(b => b.onclick = () => startGame(b.dataset.game));
   screen.querySelectorAll('[data-sleep]').forEach(b => b.onclick = () => { go('room'); toast(`Tap Sleep so ${pet.name} can rest! 🌙`); });
 }
@@ -1780,7 +1786,7 @@ function finishGame(key, score, coins) {
   }
   currentTab = 'games';
   render();
-  openModal(`<h2>Game over!</h2>
+  openModal(`<h2>${GAMES[key].job ? 'Shift over!' : 'Game over!'}</h2>${GAMES[key].job ? `<p>😊 Customers served: <b>${score}</b></p>` : ''}
     <p class="big">⭐ ${score} ${isBest && score > 0 ? '<span class="new-best">New best!</span>' : ''}</p>
     <p class="lvl-done">🏁 Level ${lvl} done! Next time: <b>Level ${lvl + 1}</b></p>
     <p>You earned <b>🪙 ${coins}</b>${bonus > 1 && base > 0 ? ` <span class="muted">(${base} × level bonus ${bonus})</span>` : ''}</p>
@@ -2645,6 +2651,133 @@ function runSnack(root) {
     raf = requestAnimationFrame(frame);
   }
   order(); hud();
+  raf = requestAnimationFrame(frame);
+  return { stop() { ended = true; cancelAnimationFrame(raf); } };
+}
+
+// Jobs: customers (other pets) come to the counter with an order ticket.
+// Tap the ingredients in the same order as the ticket. Fast orders get a tip.
+const JOBS = {
+  burger: {
+    title: 'Burger Diner', chef: '🧑‍🍳', start: ['🍞'], end: ['🍞'], endName: 'Top bun',
+    parts: { '🍞': 'Bun', '🥩': 'Patty', '🧀': 'Cheese', '🥬': 'Lettuce', '🍅': 'Tomato', '🥓': 'Bacon', '🧅': 'Onion', '🥒': 'Pickle' },
+    middle: ['🥩', '🧀', '🥬', '🍅', '🥓', '🧅', '🥒'], stackUp: true,
+  },
+  icecream: {
+    title: 'Ice Cream Shop', chef: '🍨', start: null, startPick: ['🍦', '🥣'], end: null,
+    parts: { '🍦': 'Cone', '🥣': 'Cup', '🍫': 'Chocolate', '🍓': 'Strawberry', '🍋': 'Lemon', '🫐': 'Blueberry', '🍪': 'Cookie', '🥭': 'Mango', '🍒': 'Cherry', '✨': 'Sprinkles', '🍯': 'Honey' },
+    middle: ['🍫', '🍓', '🍋', '🫐', '🍪', '🥭'], topPick: ['🍒', '✨', '🍯'], stackUp: true,
+  },
+  pizza: {
+    title: 'Pizza Place', chef: '👨‍🍳', start: ['🫓', '🥫', '🧀'], end: ['🔥'],
+    parts: { '🫓': 'Dough', '🥫': 'Sauce', '🧀': 'Cheese', '🍄': 'Mushroom', '🫑': 'Pepper', '🍍': 'Pineapple', '🥓': 'Bacon', '🫒': 'Olive', '🌽': 'Corn', '🔥': 'Bake!' },
+    middle: ['🍄', '🫑', '🍍', '🥓', '🫒', '🌽'], noRepeat: true,
+  },
+  cafe: {
+    title: 'Cozy Café', chef: '🧑‍🍳', start: null, startPick: ['☕', '🍵', '🧋'], end: null,
+    parts: { '☕': 'Coffee', '🍵': 'Tea', '🧋': 'Boba', '🥛': 'Milk', '🍫': 'Chocolate', '🍯': 'Honey', '🧊': 'Ice', '🍓': 'Strawberry', '🍦': 'Cream', '🍪': 'Cookie' },
+    middle: ['🥛', '🍫', '🍯', '🧊', '🍓', '🍦'], topPick: ['🍪'], noRepeat: true,
+  },
+};
+
+function runJob(root, key) {
+  const job = JOBS[key], d = difficulty(key);
+  const pet = activePet();
+  const petImg = pet && SPECIES[pet.species].img;
+  // Customers are pets you've found (or any common pet if you haven't found many yet).
+  let crowd = state.dex.filter(id => SPECIES[id]);
+  if (crowd.length < 4) crowd = Object.keys(SPECIES).filter(id => SPECIES[id].rarity === 'common');
+  root.innerHTML = gameHead() + `<div class="job-stage">
+      <div class="job-top">
+        <div class="job-cust" id="cust"></div>
+        <div class="job-ticket" id="ticket"></div>
+      </div>
+      <div class="job-patience"><div id="jpb"></div></div>
+      <div class="job-counter">
+        <div class="job-plate ${job.stackUp ? 'up' : ''}" id="plate"></div>
+        <div class="job-worker">${petImg ? `<img src="${petImg}" alt="">` : '🐾'}<span>${job.chef}</span></div>
+      </div>
+      <div class="job-msg" id="jmsg">Here comes a customer!</div>
+      <div class="job-bins" id="bins"></div>
+    </div>
+    <p class="hint">Tap the ingredients in the same order as the ticket. Fast = bigger tip! 💰</p>`;
+  const all = [...new Set([...(job.start || []), ...(job.startPick || []), ...job.middle, ...(job.topPick || []), ...(job.end || [])])];
+  $('#bins', root).innerHTML = all.map(i => `<button class="job-bin" type="button" data-i="${i}"><span>${i}</span><small>${job.parts[i]}</small></button>`).join('');
+  root.querySelectorAll('.job-bin').forEach(b => b.onpointerdown = e => { e.preventDefault(); tap(b); });
+
+  let score = 0, coins = 0, time = 60, ended = false, order = [], step = 0, pat = 0, patMax = 0, served = 0, raf = 0, last = performance.now(), busy = false;
+  const rnd = a => a[Math.floor(Math.random() * a.length)];
+  const hud = () => { $('#gTime', root).textContent = Math.max(0, Math.ceil(time)); $('#gScore', root).textContent = score; $('#gExtra', root).textContent = `🪙 ${coins}`; };
+  const say = (t, cls = '') => { const m = $('#jmsg', root); m.textContent = t; m.className = 'job-msg ' + cls; };
+
+  function newOrder() {
+    // Orders get longer as you serve more, and on higher job levels.
+    const n = Math.min(job.middle.length, 1 + Math.floor((d - 1) * 6) + Math.floor(served / 2) + (Math.random() < 0.5 ? 1 : 0));
+    let mid = [];
+    for (let i = 0; i < n; i++) {
+      let x = rnd(job.middle);
+      if (job.noRepeat) { const left = job.middle.filter(m => !mid.includes(m)); x = rnd(left); }
+      mid.push(x);
+    }
+    order = [...(job.start || [rnd(job.startPick)]), ...mid, ...(job.topPick && Math.random() < 0.7 ? [rnd(job.topPick)] : []), ...(job.end || [])];
+    step = 0;
+    patMax = pat = Math.max(4, (3 + order.length * 1.6) / d - served * 0.08);
+    const who = SPECIES[rnd(crowd)];
+    $('#cust', root).innerHTML = `<img src="${who.img}" alt=""><b>${who.name}</b>`;
+    $('#cust', root).classList.remove('leave'); void $('#cust', root).offsetWidth; $('#cust', root).classList.add('arrive');
+    drawTicket(); drawPlate(); busy = false;
+    say(`"One ${job.title === 'Cozy Café' ? 'drink' : 'order'}, please!"`);
+  }
+  function drawTicket() {
+    $('#ticket', root).innerHTML = `<div class="tk-head">ORDER #${served + 1}</div>` + order.map((i, n) =>
+      `<div class="tk-row ${n < step ? 'done' : n === step ? 'now' : ''}"><span>${i}</span>${job.parts[i]}</div>`).join('');
+  }
+  function drawPlate() {
+    const made = order.slice(0, step);
+    $('#plate', root).innerHTML = (job.stackUp ? [...made].reverse() : made).map(i => `<span>${i}</span>`).join('');
+  }
+  function tap(b) {
+    if (ended || busy) return;
+    if (b.dataset.i === order[step]) {
+      step++; b.classList.remove('yum'); void b.offsetWidth; b.classList.add('yum');
+      drawTicket(); drawPlate();
+      if (step === order.length) serve();
+    } else {
+      b.classList.add('nope'); setTimeout(() => b.classList.remove('nope'), 300);
+      pat -= 1.2;   // mistakes make the customer wait longer
+      say(`Oops! The ticket says ${job.parts[order[step]]} ${order[step]}`, 'bad');
+    }
+  }
+  function serve() {
+    busy = true;
+    const tip = pat / patMax > 0.6 ? 3 : pat / patMax > 0.3 ? 1 : 0;
+    const pay = Math.ceil(order.length / 2) + tip;
+    coins += pay; score++; served++;
+    say(tip >= 3 ? `⭐ Super fast! +🪙 ${pay} (tip!)` : tip ? `😊 Thanks! +🪙 ${pay} (tip!)` : `🙂 Thanks! +🪙 ${pay}`, 'good');
+    $('#cust', root).classList.add('leave');
+    hud();
+    setTimeout(() => { if (!ended) newOrder(); }, 700);
+  }
+  function frame(t) {
+    const dt = Math.min(0.05, (t - last) / 1000); last = t;
+    time -= dt;
+    if (!busy) {
+      pat -= dt;
+      if (pat <= 0) {   // waited too long: the customer leaves
+        busy = true;
+        say('😤 Too slow! The customer left.', 'bad');
+        $('#cust', root).classList.add('leave');
+        setTimeout(() => { if (!ended) newOrder(); }, 800);
+      }
+    }
+    const bar = $('#jpb', root);
+    bar.style.width = Math.max(0, pat / patMax * 100) + '%';
+    bar.className = pat / patMax < 0.3 ? 'low' : '';
+    hud();
+    if (time <= 0) { ended = true; finishGame(key, score, coins); return; }
+    raf = requestAnimationFrame(frame);
+  }
+  newOrder(); hud();
   raf = requestAnimationFrame(frame);
   return { stop() { ended = true; cancelAnimationFrame(raf); } };
 }
