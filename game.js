@@ -1758,9 +1758,10 @@ function renderGames() {
       ${jobs ? '<span class="awning"></span>' : '<span class="marquee">★ ★ ★</span>'}
       <span class="ptile-screen"><span class="ptile-ico">${locked ? '🔒' : g.icon}</span></span>
       <b class="ptile-name">${g.name}</b>
-      ${locked ? `<span class="ptile-lock">Opens at Lv ${g.level}</span>`
+      ${locked ? `<span class="ptile-lock">Opens at Lv ${g.level}</span>${jobs ? `<span class="ptile-pay">💰 Pay x${jobTier(key)}</span>` : ''}`
         : `<span class="ptile-meta"><span class="glvl">Lv ${gameLevel(key)}</span> ⭐ ${state.best[key] || 0}</span>
-           <span class="ptile-win">🪙 up to ${Math.round(g.max * coinBonus(key))}${coinBonus(key) > 1 ? ` <i>x${coinBonus(key)}</i>` : ''}</span>
+           <span class="ptile-win">🪙 up to ${maxWin(key)}${!jobs && coinBonus(key) > 1 ? ` <i>x${coinBonus(key)}</i>` : ''}</span>
+           ${jobs ? `<span class="ptile-pay">💰 Pay x${Math.round(coinBonus(key) * jobTier(key) * 100) / 100}</span>` : ''}
            <span class="ptile-go">${tired ? '😴 Sleep first' : jobs ? '💼 Work!' : '▶ Play!'}</span>`}
     </button>`;
   };
@@ -1825,7 +1826,14 @@ function finishGame(key, score, coins) {
 // and it pays more coins (5% more per level, up to 2.5x).
 const gameLevel = key => (state.plays[key] || 0) + 1;
 const difficulty = key => 1 + Math.min(state.plays[key] || 0, 30) * 0.02;
-const coinBonus = key => Math.round((1 + Math.min(state.plays[key] || 0, 30) * 0.05) * 100) / 100;
+// Jobs pay even more: +10% for every shift you've worked there (up to 5x after 40 shifts).
+const coinBonus = key => Math.round((GAMES[key] && GAMES[key].job
+  ? 1 + Math.min(state.plays[key] || 0, 40) * 0.1
+  : 1 + Math.min(state.plays[key] || 0, 30) * 0.05) * 100) / 100;
+// Harder jobs (the ones that open at higher player levels) pay more for every order.
+const jobTier = key => Math.round((1 + ((GAMES[key] && GAMES[key].level) || 1) / 25) * 100) / 100;
+// Highest coins you can earn in one go, with all bonuses.
+const maxWin = key => Math.round(GAMES[key].max * coinBonus(key) * (GAMES[key].job ? jobTier(key) : 1));
 
 const gameHead = () => `<div class="game-head">
   <span class="glvl" id="gLevel"></span><span>⏱ <b id="gTime"></b></span><span>⭐ <b id="gScore">0</b></span><span id="gExtra"></span>
@@ -2756,7 +2764,7 @@ function runJob(root, key) {
 
   let score = 0, coins = 0, time = 60, ended = false, order = [], step = 0, pat = 0, patMax = 0, served = 0, raf = 0, last = performance.now(), busy = false;
   const rnd = a => a[Math.floor(Math.random() * a.length)];
-  const hud = () => { $('#gTime', root).textContent = Math.max(0, Math.ceil(time)); $('#gScore', root).textContent = score; $('#gExtra', root).textContent = `🪙 ${coins}`; };
+  const hud = () => { $('#gTime', root).textContent = Math.max(0, Math.ceil(time)); $('#gScore', root).textContent = score; $('#gExtra', root).textContent = `🪙 ${Math.round(coins * coinBonus(key))}`; };
   const say = (t, cls = '') => { const m = $('#jmsg', root); m.textContent = t; m.className = 'job-msg ' + cls; };
 
   function newOrder() {
@@ -2800,9 +2808,10 @@ function runJob(root, key) {
   function serve() {
     busy = true;
     const tip = pat / patMax > 0.6 ? 3 : pat / patMax > 0.3 ? 1 : 0;
-    const pay = Math.ceil(order.length / 2) + tip;
+    const pay = Math.round((Math.ceil(order.length / 2) + tip) * jobTier(key));
     coins += pay; score++; served++;
-    say(tip >= 3 ? `⭐ Super fast! +🪙 ${pay} (tip!)` : tip ? `😊 Thanks! +🪙 ${pay} (tip!)` : `🙂 Thanks! +🪙 ${pay}`, 'good');
+    const shown = Math.round(pay * coinBonus(key));   // what you'll really get, with the level bonus
+    say(tip >= 3 ? `⭐ Super fast! +🪙 ${shown} (tip!)` : tip ? `😊 Thanks! +🪙 ${shown} (tip!)` : `🙂 Thanks! +🪙 ${shown}`, 'good');
     $('#cust', root).classList.add('leave');
     hud();
     setTimeout(() => { if (!ended) newOrder(); }, 700);

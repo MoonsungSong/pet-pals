@@ -930,3 +930,4 @@ h2::after { content: ' ✦'; color: #b8a8e8; }
 }
 #nav .play-main.active b { box-shadow: 0 0 0 3px #fffaf0, 0 0 0 5px #c8902e, 0 5px 0 #0f7d72, 0 0 22px rgba(255, 200, 80, .8); }
 #nav .play-main.active { color: #0f7d72; }
+.ptile-pay { font-size: .78rem; font-weight: 800; color: #2f8f3f; background: #e4f8de; border-radius: 999px; padding: 1px 8px; }
