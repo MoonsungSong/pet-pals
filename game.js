@@ -1735,6 +1735,10 @@ const GAMES = {
   icecream:{ job: true, icon: '🍦', name: 'Ice Cream Shop', desc: 'Scoop the right flavours, then add the topping.', max: 85, level: 8, run: r => runJob(r, 'icecream') },
   pizza:   { job: true, icon: '🍕', name: 'Pizza Place', desc: 'Make the pizza, then pop it in the oven!', max: 95, level: 18, run: r => runJob(r, 'pizza') },
   cafe:    { job: true, icon: '☕', name: 'Cozy Café', desc: 'Mix drinks for a line of thirsty customers.', max: 100, level: 28, run: r => runJob(r, 'cafe') },
+  flowers: { job: true, icon: '💐', name: 'Flower Shop', desc: 'Put the flowers in the vase, then tie a ribbon.', max: 80, level: 3, run: r => runJob(r, 'flowers') },
+  toys:    { job: true, icon: '🧸', name: 'Toy Shop', desc: 'Pack the toys in a box and wrap the present.', max: 90, level: 13, run: r => runJob(r, 'toys') },
+  vet:     { job: true, icon: '🩺', name: 'Pet Vet', desc: 'Make sick pets feel better. Follow the patient chart!', max: 100, level: 23, run: r => runJob(r, 'vet') },
+  bakery:  { job: true, icon: '🎂', name: 'Cake Bakery', desc: 'Stack the cake layers and add the candle.', max: 110, level: 35, run: r => runJob(r, 'bakery') },
 };
 
 function renderGames() {
@@ -1743,7 +1747,7 @@ function renderGames() {
   screen.innerHTML = `<h2>Play</h2>
     ${pet ? `<div class="energy-pill">⚡ ${esc(pet.name)}'s energy: <b>${Math.round(pet.energy)}</b></div>` : ''}
     ${[['💼 Jobs', true], ['🎮 Games', false]].map(([title, isJob]) => `<h3 class="games-sec">${title}</h3>` +
-    Object.entries(GAMES).filter(([, g]) => !!g.job === isJob).map(([key, g]) => `
+    Object.entries(GAMES).filter(([, g]) => !!g.job === isJob).sort(([, a], [, b]) => (a.level || 1) - (b.level || 1)).map(([key, g]) => `
       <div class="game-card ${state.level < (g.level || 1) ? 'locked' : ''}"><div class="gi">${g.icon}</div>
         <div class="ginfo"><b>${g.name}</b><div class="muted">${g.desc}</div>
           <div class="muted"><span class="glvl">Level ${gameLevel(key)}</span> Best ⭐ ${state.best[key] || 0}${coinBonus(key) > 1 ? ` · <b class="gbonus">🪙 x${coinBonus(key)} bonus</b>` : ''}</div>
@@ -2678,6 +2682,30 @@ const JOBS = {
     parts: { '☕': 'Coffee', '🍵': 'Tea', '🧋': 'Boba', '🥛': 'Milk', '🍫': 'Chocolate', '🍯': 'Honey', '🧊': 'Ice', '🍓': 'Strawberry', '🍦': 'Cream', '🍪': 'Cookie' },
     middle: ['🥛', '🍫', '🍯', '🧊', '🍓', '🍦'], topPick: ['🍪'], noRepeat: true,
   },
+  flowers: {
+    title: 'Flower Shop', chef: '🌷', start: null, startPick: ['🏺', '🧺'], end: ['🎀'], ticket: 'BOUQUET',
+    ask: ['"Flowers for my mom, please!"', '"It\'s my friend\'s birthday!"', '"Something pretty, please!"'],
+    parts: { '🏺': 'Vase', '🧺': 'Basket', '🌹': 'Rose', '🌷': 'Tulip', '🌻': 'Sunflower', '🌼': 'Daisy', '🪻': 'Lavender', '🌸': 'Blossom', '🌿': 'Leaves', '🎀': 'Ribbon' },
+    middle: ['🌹', '🌷', '🌻', '🌼', '🪻', '🌸', '🌿'],
+  },
+  toys: {
+    title: 'Toy Shop', chef: '🧸', start: ['📦'], end: ['🎀'], ticket: 'GIFT ORDER', stackUp: true,
+    ask: ['"Can you wrap a present?"', '"A gift for my little brother!"', '"I want the best toys!"'],
+    parts: { '📦': 'Box', '🧸': 'Teddy', '🪀': 'Yo-yo', '🪁': 'Kite', '🚂': 'Train', '🎨': 'Paints', '⚽': 'Ball', '🧩': 'Puzzle', '🎀': 'Ribbon' },
+    middle: ['🧸', '🪀', '🪁', '🚂', '🎨', '⚽', '🧩'], noRepeat: true,
+  },
+  vet: {
+    title: 'Pet Vet', chef: '🩺', start: ['🩺'], end: ['🍬'], ticket: 'PATIENT CHART',
+    ask: ['"My tummy feels funny…"', '"I bumped my paw!"', '"Achoo! I have a cold."', '"Time for my check-up!"'],
+    parts: { '🩺': 'Listen', '🌡️': 'Temperature', '💊': 'Medicine', '🩹': 'Bandage', '💉': 'Shot', '🧴': 'Cream', '🛁': 'Bath', '🪥': 'Brush teeth', '🍬': 'Treat!' },
+    middle: ['🌡️', '💊', '🩹', '💉', '🧴', '🛁', '🪥'], noRepeat: true,
+  },
+  bakery: {
+    title: 'Cake Bakery', chef: '🧁', start: ['🍽️'], end: ['🕯️'], ticket: 'CAKE ORDER', stackUp: true,
+    ask: ['"A birthday cake, please!"', '"The biggest cake you can make!"', '"A cake for a party!"'],
+    parts: { '🍽️': 'Plate', '🍰': 'Vanilla', '🍫': 'Chocolate', '🍓': 'Strawberry', '🍋': 'Lemon', '🥥': 'Coconut', '🍯': 'Honey', '🍒': 'Cherry', '🕯️': 'Candle' },
+    middle: ['🍰', '🍫', '🍓', '🍋', '🥥', '🍯', '🍒'],
+  },
 };
 
 function runJob(root, key) {
@@ -2726,10 +2754,10 @@ function runJob(root, key) {
     $('#cust', root).innerHTML = `<img src="${who.img}" alt=""><b>${who.name}</b>`;
     $('#cust', root).classList.remove('leave'); void $('#cust', root).offsetWidth; $('#cust', root).classList.add('arrive');
     drawTicket(); drawPlate(); busy = false;
-    say(`"One ${job.title === 'Cozy Café' ? 'drink' : 'order'}, please!"`);
+    say(job.ask ? rnd(job.ask) : `"One ${job.title === 'Cozy Café' ? 'drink' : 'order'}, please!"`);
   }
   function drawTicket() {
-    $('#ticket', root).innerHTML = `<div class="tk-head">ORDER #${served + 1}</div>` + order.map((i, n) =>
+    $('#ticket', root).innerHTML = `<div class="tk-head">${job.ticket || 'ORDER'} #${served + 1}</div>` + order.map((i, n) =>
       `<div class="tk-row ${n < step ? 'done' : n === step ? 'now' : ''}"><span>${i}</span>${job.parts[i]}</div>`).join('');
   }
   function drawPlate() {
