@@ -1,5 +1,5 @@
 // Pet Pals music: an original tune played live by the browser (no sound files).
-// PetMusic.play('home' | 'job'), PetMusic.stop()
+// PetMusic.play('home' | 'job' | 'sleep'), PetMusic.stop()
 (function () {
   let ctx, master, timer, mode = null, step = 0, nextT = 0;
   const f = m => 440 * Math.pow(2, (m - 69) / 12);
@@ -11,7 +11,15 @@
     77,0,81,0,79,77,76,74,   79,0,83,0,86,0,0,0];
   const CHORDS = [[48,60,64,67],[45,60,64,69],[41,60,65,69],[43,62,67,71],
                   [48,60,64,67],[45,60,64,69],[50,62,65,69],[43,62,67,71]];
-  const TEMPO = { home: 116, job: 144 };
+  // Sleepy lullaby: slow, soft, no drums.
+  const LUL = [
+    76,0,0,0,79,0,0,0,   77,0,0,0,81,0,0,0,
+    76,0,74,0,72,0,0,0,  74,0,0,0,79,0,0,0,
+    72,0,76,0,81,0,0,0,  77,0,76,0,74,0,0,0,
+    74,0,0,0,71,0,0,0,   72,0,0,0,0,0,0,0];
+  const LUL_CHORDS = [[48,60,64,67],[41,60,65,69],[48,60,64,67],[43,62,67,71],
+                      [45,60,64,69],[41,60,65,69],[43,62,67,71],[48,60,64,67]];
+  const TEMPO = { home: 116, job: 144, sleep: 66 };
   const UP = 2; // play it in D: a little brighter
 
   function tone(t, freq, type, vol, len, partial) {
@@ -38,6 +46,13 @@
   function schedule() {
     const eighth = 30 / TEMPO[mode];
     while (nextT < ctx.currentTime + 0.15) {
+      if (mode === 'sleep') {
+        const ch = LUL_CHORDS[Math.floor(step / 8) % 8], e = step % 8, m = LUL[step % 64];
+        if (m) tone(nextT, f(m + UP), 'sine', 0.2, 2.2, 4);
+        if (e === 0) tone(nextT, f(ch[0] + UP), 'sine', 0.22, 3);
+        if (e % 2 === 0 && e) tone(nextT, f(ch[e / 2] + UP), 'sine', 0.07, 1.4);
+        nextT += eighth; step++; continue;
+      }
       const bar = Math.floor(step / 8) % 8, e = step % 8, ch = CHORDS[bar], m = MEL[step % 64];
       if (m) musicBox(nextT, m);
       // bouncy "oom-pah": low note, chord, high note, chord
@@ -68,7 +83,7 @@
 })();
 
 // 🔊 button in the top bar. Music starts on the first tap (browsers need a tap first).
-// Home tune normally, faster job tune while a job or minigame is running.
+// Home tune normally, faster job tune while a job or minigame is running, lullaby while your pet sleeps.
 (function () {
   const coins = document.getElementById('coins');
   if (!coins) return;
@@ -80,7 +95,7 @@
   draw();
   coins.parentNode.insertBefore(btn, coins);
   let tapped = false;
-  const want = () => { try { return typeof activeGame !== 'undefined' && activeGame ? 'job' : 'home'; } catch (e) { return 'home'; } };
+  const want = () => { try { if (typeof activeGame !== 'undefined' && activeGame) return 'job'; const p = typeof activePet === 'function' && activePet(); return p && p.sleeping ? 'sleep' : 'home'; } catch (e) { return 'home'; } };
   const update = () => { if (!tapped) return; if (on) { if (PetMusic.playing !== want()) PetMusic.play(want()); } else if (PetMusic.playing) PetMusic.stop(); };
   btn.onclick = () => { on = !on; try { localStorage.setItem('petpals-music', on ? 'on' : 'off'); } catch (e) {} draw(); tapped = true; update(); };
   document.addEventListener('pointerdown', () => { if (!tapped) { tapped = true; update(); } }, true);
