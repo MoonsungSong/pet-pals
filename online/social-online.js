@@ -42,9 +42,8 @@
     const del = (social.mail || []).filter(m => m.kind === 'delivery');
     for (const m of del) {
       try {
-        const r = await P.rpc('pp_claim', { p_token: tok(), p_mail: m.id });
-        const pet = addPet(r.payload.pet);
-        save();
+        const r = await P.serverOp('pp_open_mail', { p_mail: m.id });   // the server puts the pet in my game
+        const pet = r.payload.pet && SPECIES[r.payload.pet.species] ? r.payload.pet : null;
         if (pet) {
           const why = r.payload.why === 'room_closed' ? `The trade room was closed, so <b>${esc(pet.name)}</b> came back home. 🏡`
             : r.payload.why === 'declined' ?`${esc(m.from ? m.from.nickname : 'Your friend')} said no to the trade, so <b>${esc(pet.name)}</b> came back home. 🏡`
@@ -112,21 +111,20 @@
     };
     box.querySelectorAll('[data-acc]').forEach(b => b.onclick = () => act('pp_answer_friend', { p_request: b.dataset.acc, p_accept: true }, () => toast('🎉 New friend!')));
     box.querySelectorAll('[data-rej]').forEach(b => b.onclick = () => act('pp_answer_friend', { p_request: b.dataset.rej, p_accept: false }));
-    box.querySelectorAll('[data-open]').forEach(b => b.onclick = () => act('pp_claim', { p_mail: b.dataset.open }, r => {
+    // (coins, treats and pets are added or taken away by the server, so no copies can be made)
+    const opServer = async (fn, args, ok) => { try { const r = await P.serverOp(fn, args); if (ok) ok(r); } catch (e) { toast(P.say(e)); } again(); };
+    box.querySelectorAll('[data-open]').forEach(b => b.onclick = () => opServer('pp_open_mail', { p_mail: b.dataset.open }, r => {
       const g = r.payload; let what = '';
-      if (g.coins) { state.coins += g.coins; what = `🪙 ${g.coins} coins`; }
+      if (g.coins) what = `🪙 ${g.coins} coins`;
       if (g.item) {
-        const list = g.item.kind === 'food' ? FOODS : DRINKS, it = list.find(x => x.id === g.item.id);
-        if (it) { state.inv[g.item.kind][it.id] = (state.inv[g.item.kind][it.id] || 0) + Math.min(5, g.item.n || 1); what = `${it.icon} ${it.name} x${g.item.n || 1}`; }
+        const it = (g.item.kind === 'food' ? FOODS : DRINKS).find(x => x.id === g.item.id);
+        if (it) what = `${it.icon} ${it.name} x${g.item.n || 1}`;
       }
-      save(); updateHUD();
       openModal(`<h2>🎁 A gift!</h2><p><b>${esc(r.from ? r.from.nickname : 'A friend')}</b> sent you</p><p class="gift-big">${what}</p><button class="btn" data-close>Yay! 💖</button>`);
     }));
-    box.querySelectorAll('[data-no]').forEach(b => b.onclick = () => act('pp_answer_trade', { p_mail: b.dataset.no, p_accept: false }, () => toast('Trade declined.')));
+    box.querySelectorAll('[data-no]').forEach(b => b.onclick = () => opServer('pp_answer_offer', { p_mail: b.dataset.no, p_accept: false, p_my_pet_id: null }, () => toast('Trade declined.')));
     box.querySelectorAll('[data-yes]').forEach(b => b.onclick = () => acceptTrade(mail.find(m => m.id === b.dataset.yes)));
-    box.querySelectorAll('[data-cancel]').forEach(b => b.onclick = () => act('pp_cancel_trade', { p_mail: b.dataset.cancel }, r => {
-      const pet = addPet(r.pet); save(); if (pet) toast(`🏡 ${pet.name} came back home.`);
-    }));
+    box.querySelectorAll('[data-cancel]').forEach(b => b.onclick = () => act('pp_cancel_offer', { p_mail: b.dataset.cancel }, () => toast('🏡 Your pet is on its way home.')));
     box.querySelectorAll('[data-visit]').forEach(b => b.onclick = () => visit(b.dataset.visit));
     box.querySelectorAll('[data-gift]').forEach(b => b.onclick = () => gift(s.friends.find(f => f.id === b.dataset.gift)));
     box.querySelectorAll('[data-trade]').forEach(b => b.onclick = () => trade(s.friends.find(f => f.id === b.dataset.trade)));
@@ -135,15 +133,13 @@
   async function acceptTrade(m) {
     const mine = state.pets.find(p => p.id === m.payload.want.id && p.species === m.payload.want.species);
     if (!mine) { toast(`You don't have ${m.payload.want.name} anymore, so you can't do this trade.`); return; }
-    const pet = takePet(mine.id);
-    save();
     try {
-      const r = await P.rpc('pp_answer_trade', { p_token: tok(), p_mail: m.id, p_accept: true, p_my_pet: pet });
-      const got = addPet(r.pet); save();
+      const r = await P.serverOp('pp_answer_offer', { p_mail: m.id, p_accept: true, p_my_pet_id: mine.id });
+      const got = r.pet;
       openModal(`<h2>🎉 Trade done!</h2><img src="${SPECIES[got.species].img}" alt="" style="width:140px;height:140px;object-fit:contain">
-        <p><b>${esc(got.name)}</b> the ${SPECIES[got.species].name} is your pet now!<br>${esc(pet.name)} went to live with ${esc(m.from ? m.from.nickname : 'your friend')}.</p>
+        <p><b>${esc(got.name)}</b> the ${SPECIES[got.species].name} is your pet now!<br>${esc(mine.name)} went to live with ${esc(m.from ? m.from.nickname : 'your friend')}.</p>
         <button class="btn" data-close>Yay! 💖</button>`);
-    } catch (e) { addPet(pet); save(); toast(P.say(e)); }
+    } catch (e) { toast(P.say(e)); }
     social = null; refresh(); render();
   }
 
@@ -162,25 +158,28 @@
       <div class="gift-coins">${[10, 25, 50].map(c => `<button class="btn small" data-c="${c}" ${state.coins < c ? 'disabled' : ''}>🪙 ${c}</button>`).join('')}</div>
       ${items.length ? `<p class="muted">or a treat from your bag:</p><div class="avatar-grid">${items.map(([k, x]) => `<button class="av-pick" data-k="${k}" data-i="${x.id}"><span style="font-size:2rem">${x.icon}</span><small>${x.name} (${state.inv[k][x.id]})</small></button>`).join('')}</div>` : ''}
       <button class="btn ghost small" data-close>Close</button>`, box => {
-      const send = async (g, undo) => {
-        closeModal(); save();
-        try { await P.rpc('pp_send_gift', { p_token: tok(), p_friend: f.id, p_gift: g }); toast(`🎁 Gift sent to ${f.nickname}!`); }
-        catch (e) { undo(); save(); toast(P.say(e)); }
+      // The server takes the coins/treat out of my game and sends it (so it can't be copied).
+      const send = async g => {
+        closeModal();
+        try { await P.serverOp('pp_gift', { p_friend: f.id, p_gift: g }); toast(`🎁 Gift sent to ${f.nickname}!`); }
+        catch (e) { toast(P.say(e)); }
         render();
       };
       box.querySelectorAll('[data-c]').forEach(b => b.onclick = () => {
         const c = +b.dataset.c; if (state.coins < c) return;
-        state.coins -= c; send({ coins: c }, () => { state.coins += c; });
+        send({ coins: c });
       });
       box.querySelectorAll('[data-k]').forEach(b => b.onclick = () => {
         const k = b.dataset.k, i = b.dataset.i; if (!(state.inv[k][i] > 0)) return;
-        state.inv[k][i]--; send({ item: { kind: k, id: i, n: 1 } }, () => { state.inv[k][i]++; });
+        send({ item: { kind: k, id: i, n: 1 } });
       });
     });
   }
 
   async function trade(f) {
-    if (window.PPO_chat && window.PPO_chat.ready()) return window.PPO_chat.tradeWith(f.id);   // live trade window (when chat is set up)
+    if (window.PPO_chat && window.PPO_chat.ready()) return window.PPO_chat.tradeWith(f.id);   // live trade window
+    toast('Trading is starting up… try again in a few seconds! 🔁'); return;
+    // (old-style trade offers below are no longer sent)
     if (state.pets.length < 2) { toast('Keep at least one pet at home! Hatch another egg before trading.'); return; }
     let theirs;
     try { theirs = (await P.rpc('pp_friend_pets', { p_token: tok(), p_friend: f.id })).pets.filter(p => SPECIES[p.species]); }

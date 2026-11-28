@@ -26,6 +26,12 @@
     room_gone: 'That trade room is closed now.',
     put_pet_first: 'Put a pet in first, then press Accept!',
     side_full: 'You can put in up to 4 pets.',
+    resync: 'Your game just changed on another tab or device. It has been updated, so please try again! 🔄',
+    pet_gone: "That pet isn't in your game any more.",
+    keep_one_pet: 'Keep at least one pet at home! Hatch another egg to trade more.',
+    not_enough: "You don't have enough of that to give.",
+    mail_gone: 'That was already opened.',
+    offer_gone: 'That trade offer is gone.',
     not_joined: 'Wait for your friend to say yes to the trade first!',
     wait_a_bit: 'The pets just changed. Look carefully, then try again in 3 seconds! 👀',
     both_accept_first: 'You both need to press Accept first!',
@@ -72,6 +78,7 @@
     s.src = window.PETPALS_GAME_SRC;
     s.onload = () => {
       hookSaving();
+      oneTab();
       const f = document.createElement('script');
       f.src = window.PETPALS_SOCIAL_ONLINE_SRC;
       f.onload = () => {
@@ -110,6 +117,7 @@
   function hookSaving() {
     const localSave = window.save;
     window.save = function () {
+      if (blocked) return;                          // this tab was replaced by a newer one: don't save over it
       localSave();
       const m = read(metaKey(session.id), { version: 0 }); m.dirty = true; write(metaKey(session.id), m);
       clearTimeout(syncTimer); syncTimer = setTimeout(sync, 2500);
@@ -140,6 +148,53 @@
       if (e.code === 'not_logged_in') { logout(true); }
     } finally { syncing = false; }
   }
+  // Wait until everything on this device is saved to the server.
+  async function flush() {
+    const idle = async () => { for (let i = 0; i < 60 && syncing; i++) await new Promise(r => setTimeout(r, 100)); };
+    await idle();
+    if (read(metaKey(session.id), {}).dirty) { clearTimeout(syncTimer); await sync(); await idle(); }
+  }
+  // Use the saved game the server sends back as this device's game.
+  function adopt(save, version) {
+    write(cacheKey(session.id), save);
+    write(metaKey(session.id), { version, dirty: false });
+    if (window.loadState) { state = loadState(); if (window.render) render(); if (window.updateHUD) updateHUD(); }
+  }
+  // Things that move pets, coins or treats in or out of the game happen on the server,
+  // so a second tab or device can't keep a copy. The server sends back the new saved game.
+  async function serverOp(fn, args) {
+    await flush();
+    const m = read(metaKey(session.id), { version: 0 });
+    if (m.dirty) throw Object.assign(new Error('resync'), { code: 'resync' });
+    let r;
+    try { r = await rpc(fn, Object.assign({ p_token: session.token, p_base_version: m.version }, args)); }
+    catch (e) {
+      if (e.code === 'resync') { try { const l = await rpc('pp_load', { p_token: session.token }); adopt(l.save, l.version); } catch (e2) { /* offline */ } }
+      throw e;
+    }
+    if (r && r.save) adopt(r.save, r.version);
+    return r;
+  }
+
+  // Only one tab can play at a time. When a new tab opens the game, older tabs stop.
+  let blocked = false;
+  function oneTab() {
+    let bc;
+    try { bc = new BroadcastChannel('petpals-tab-' + session.id); } catch (e) { return; }
+    bc.postMessage('new-tab');
+    bc.onmessage = e => {
+      if (e.data !== 'new-tab' || blocked) return;
+      sync().finally(() => { blocked = true; });
+      const d = document.createElement('div');
+      d.id = 'tabBlock';
+      d.innerHTML = `<div class="login-card"><div style="font-size:3rem">🐾</div><h2 class="login-q">Pet Pals is open somewhere else</h2>
+        <p>You can only play in one tab at a time, so your pets stay safe.</p>
+        <button class="btn" type="button" id="playHere">Play here instead</button></div>`;
+      document.body.appendChild(d);
+      d.querySelector('#playHere').onclick = () => location.reload();
+    };
+  }
+
   function setCloud(ok) {
     const b = document.getElementById('profileBtn');
     if (b) b.classList.toggle('offline', !ok);
@@ -257,5 +312,5 @@
     } else showHome();
   }
 
-  window.PPO = { rpc, say, start, logout, get session() { return session; }, sync };
+  window.PPO = { rpc, say, start, logout, get session() { return session; }, sync, serverOp };
 })();

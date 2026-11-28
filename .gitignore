@@ -7,3 +7,4 @@ Gemini_Generated_Image*.jpeg
 # The database setup is run in Supabase, not served with the game
 online/setup.sql
 online/chat.sql
+online/fix-dupes.sql

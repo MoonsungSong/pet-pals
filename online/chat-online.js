@@ -201,22 +201,20 @@
       <button class="btn ghost small" data-close>Cancel</button>`, box => {
       box.querySelectorAll('[data-pp]').forEach(b => b.onclick = async () => {
         closeModal();
-        const pet = S.takePet(+b.dataset.pp);       // it leaves my game and waits safely in the trade
-        if (!pet) return;
-        save();
-        try { room = await P.rpc('pp_trade_add', { p_token: tok(), p_trade: r.id, p_pet: pet }); }
-        catch (e) { S.addPet(pet); toast(P.say(e)); }
-        save(); render(); drawTop();
+        // The server takes the pet out of my saved game and holds it in the trade (no copies!).
+        try { room = (await P.serverOp('pp_trade_add', { p_trade: r.id, p_pet_id: +b.dataset.pp })).room; }
+        catch (e) { toast(P.say(e)); }
+        drawTop();
       });
     });
   }
   async function takeOut(r, i) {
     try {
-      const x = await P.rpc('pp_trade_remove', { p_token: tok(), p_trade: r.id, p_index: i });
-      const p = S.addPet(x.back); if (p) toast(`🏡 ${p.name} came back home.`);
+      const x = await P.serverOp('pp_trade_remove', { p_trade: r.id, p_index: i });   // the server puts it back in my game
+      if (x.back) toast(`🏡 ${x.back.name} came back home.`);
       room = x.room;
     } catch (e) { toast(P.say(e)); }
-    save(); render(); drawTop();
+    drawTop();
   }
 
   async function tradeWith(friendId) {
